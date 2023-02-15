@@ -1,3 +1,4 @@
+
 # ----------------------------------------------------------------------------------------------
 
 def get_number() -> str:
@@ -51,8 +52,8 @@ def check_number(n) -> int:
 
 # ----------------------------------------------------------------------------------------------
 
-def collatz_conjecture(n):
-    """Implements the Collatz Conjecture for the given starting number and prints the sequence of numbers generated until the sequence reaches 1.
+def single_collatz_conjecture(n):
+    """Implements the Collatz Conjecture for one iteration of the given number.
 
     The Collatz Conjecture states that, for any positive integer n, if you repeatedly apply the following steps to it, you will eventually reach the number 1:
         1. If n is even, divide it by 2.
@@ -64,22 +65,14 @@ def collatz_conjecture(n):
     Returns:
         None
     """
-    
-    num_steps = 1
 
-    print(f'Starting number: {n}\n')
+    if n % 2 == 0:
+        n //= 2
+    else:
+        n = 3*n + 1
 
-    while n != 1:
-        if n % 2 == 0:
-            n //= 2
-        else:
-            n = 3*n + 1
+    return n
 
-        print(n)
-
-        num_steps += 1
-
-    print(f'Steps: {num_steps}')
 
 # ----------------------------------------------------------------------------------------------
 
@@ -87,5 +80,14 @@ if __name__ == '__main__':
 
     n = get_number()
     n = check_number(n)
-    collatz_conjecture(n)
 
+    print(f'Starting number: {n}\n')
+
+    num_steps = 1
+
+    while n != 1:
+        n = single_collatz_conjecture(n)
+        print(n)
+        num_steps += 1
+
+    print(f'Steps: {num_steps}')
