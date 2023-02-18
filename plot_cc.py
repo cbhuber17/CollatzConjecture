@@ -25,8 +25,9 @@ def plot_line(x, y, processing_time, plot_offline=True):
 
     fig = go.Figure(data=traces, layout=layout)
 
-    # Show processing time
-    fig.add_annotation(xref='paper', yref='paper', x=0.9, y=0.9, text=f'Processing Time: {processing_time*1000000:.3f} us')
+    # Show processing time and steps
+    fig.add_annotation(xref='paper', yref='paper', x=0.9, y=0.9, showarrow=False, text=f'<b>Processing Time:</b> {processing_time*1e6:.3f} us')
+    fig.add_annotation(xref='paper', yref='paper', x=0.9, y=0.8, showarrow=False, text=f'<b>Number Steps:</b> {len(x)}')
 
     if plot_offline:
         pyo.plot(fig, filename='cc.html')
