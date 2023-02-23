@@ -15,6 +15,12 @@ app = dash.Dash(__name__, assets_folder='assets', title='Collatz Conjecture', up
 
 app.config.suppress_callback_exceptions = True  # Dynamic layout
 
+# TODO: Input for interval
+# TODO: Clear plot on new number
+# TODO: A way of manually stopping plotting interval?  Or just entering a number does this?
+# TODO: Remove starting coordinate [0,0]
+# TODO: Double check x-axis range and y-axis range
+
 server = app.server
 
 cc_stats = []
@@ -47,10 +53,13 @@ def display_page(pathname, dark_mode, screen_size):
 # ------------------------------------------------------------------------
 
 @app.callback(
-        [Output('line-cc', 'figure'), Output('table', 'data')],   # TODO: table children ?
+        # [
+        # Output('line-cc', 'figure'),
+        Output('table', 'data'),
+        # ],
         [Input('dark-mode-switch', 'value'), Input('input-num-cc', 'value')],
         State('table', 'data'), State('table', 'columns'))
-def update_line(dark_mode, n, rows, columns):
+def update_table(dark_mode, n, rows, columns):
     """CALLBACK: Updates the line charts based on the dark mode selected.
     TRIGGER: Upon page load, toggling the dark mode switch, or changing x-axis timeline by button or zoom.
     :param: dark_mode (bool) Whether the plot is done in dark mode or not
@@ -64,15 +73,16 @@ def update_line(dark_mode, n, rows, columns):
 
     n = cc.check_number(n)
 
+    # TODO; Don't think can use this for clinentside callback, however can still extract processing time
     step_num, conjecture, processing_time = do_cc(n)
 
     cc_stats.append([n, processing_time*1e6, len(step_num)])
     df_cc_stats = pd.DataFrame(cc_stats, columns=['Starting Number', 'Processing time (us)', '# Steps'])
 
-    fig = plot_line(step_num, conjecture, processing_time, False)
-    # table = get_table_container(df_cc_stats, dark_mode)
+    # fig = plot_line(step_num, conjecture, processing_time, False, False)
 
-    return fig, df_cc_stats.to_dict('records')
+    # return fig, df_cc_stats.to_dict('records')
+    return df_cc_stats.to_dict('records')
 
 # ------------------------------------------------------------------------
 
@@ -141,7 +151,9 @@ def main_layout(dark_mode):
         html.Div(
             [
                 daq.ToggleSwitch(id='dark-mode-switch',
-                                 label={'label': 'View Page in Dark Mode:', 'style': {'font-size': '20px'}},
+                                 label={'label': 'View Page in Dark Mode:',
+                                        #  'style': {'font-size': '20px'}  # TODO: Getting error font-size should be fontSize?
+                                         },
                                  value=dark_mode,
                                  size=50,
                                  color='orange'),
@@ -151,16 +163,13 @@ def main_layout(dark_mode):
         ),
         html.Hr(),
         dcc.Graph(id="line-cc",
-                  mathjax='cdn',
+                #   mathjax='cdn', # TODO: Remove
                   responsive='auto',
-                  figure=plot_line([0,1], [0,1], 0, False)),  #TODO: Remove as default?
+                  figure=plot_line([0], [0], 0, False, True)), #TODO: Remove as default?
+        dcc.Interval(id='interval', disabled=True, interval=1000, max_intervals=1000),  #TODO: Interval should not be started until input is received
+        dcc.Store(id='current-num', data=0),  #TODO: May not need to start at 0?
         html.Hr(),
-        # get_table_container(df_cc_stats, dark_mode),  # TODO: Remove
-        dash_table.DataTable(
-                             id='table',
-                             columns=[{"name": i, "id": i} for i in df_cc_stats.columns],
-                             data=df_cc_stats.to_dict('records'),
-                            ),
+        get_table_container(df_cc_stats, dark_mode),
         html.Hr(),
         html.Footer(
             [
@@ -173,7 +182,7 @@ def main_layout(dark_mode):
                     id='footer-contact'
                 ),
                 html.Div(
-                    ['Ⓒ Colin Huber 2023'],
+                    ['Created by: Colin Huber 2023'],
                     id='copyright'
                 )
             ]
@@ -184,6 +193,7 @@ def main_layout(dark_mode):
 
 # ------------------------------------------------------------------------
 
+# TODO:: Remove?
 """CALLBACK: A client callback to execute JS in a browser session to get the screen width and height.
 TRIGGER: Upon page loading.
 Results are put in the Store() viewport-container data property."""
@@ -201,5 +211,38 @@ app.clientside_callback(
 
 # ------------------------------------------------------------------------
 
+'''
+TBD
+'''
+app.clientside_callback(
+    """
+    function singleCollatzConjecture(input_n, n, n_intervals) {
+    
+    if (n == null || n === 0) {
+      n = input_n;
+    }
+
+    if (n % 2 === 0) {
+      n /= 2;
+    } else {
+      n = 3 * n + 1;
+    }
+
+    disable_interval = n === 1 ? true : false;
+
+    return [[{x: [[n_intervals]], y: [[n]]}], disable_interval, n];
+
+}
+    """,
+    Output('line-cc', 'extendData'),
+    Output('interval', 'disabled'),
+    Output('current-num', 'data'),
+    Input('input-num-cc', 'value'),
+    Input('current-num', 'data'),
+    Input('interval', 'n_intervals'),
+    prevent_initial_call=True
+)
+# ------------------------------------------------------------------------
+
 if __name__ == '__main__':
-    app.run_server()
+    app.run_server(debug=True)
