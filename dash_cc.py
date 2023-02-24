@@ -1,3 +1,5 @@
+"""TBD module description"""
+
 import pandas as pd
 import dash
 from dash import dcc
@@ -15,11 +17,11 @@ app = dash.Dash(__name__, assets_folder='assets', title='Collatz Conjecture', up
 
 app.config.suppress_callback_exceptions = True  # Dynamic layout
 
-# TODO: Input for interval
 # TODO: Clear plot on new number
 # TODO: A way of manually stopping plotting interval?  Or just entering a number does this?
 # TODO: Remove starting coordinate [0,0]
 # TODO: Double check x-axis range and y-axis range
+# TODO: Dark mode
 
 server = app.server
 
@@ -76,7 +78,7 @@ def update_table(dark_mode, n, rows, columns):
     # TODO; Don't think can use this for clinentside callback, however can still extract processing time
     step_num, conjecture, processing_time = do_cc(n)
 
-    cc_stats.append([n, processing_time*1e6, len(step_num)])
+    cc_stats.append([n, "{:.2f}".format(processing_time*1e6), len(step_num)])
     df_cc_stats = pd.DataFrame(cc_stats, columns=['Starting Number', 'Processing time (us)', '# Steps'])
 
     # fig = plot_line(step_num, conjecture, processing_time, False, False)
@@ -134,7 +136,6 @@ def get_table_container(df_cc_stats, dark_mode):
 
     return container
 
-
 # ------------------------------------------------------------------------
 
 def main_layout(dark_mode):
@@ -143,30 +144,37 @@ def main_layout(dark_mode):
     :return: dash HTML layout"""
 
     layout = html.Div([
-        html.Header(
-            [
+        # html.Header(
+        #     [
 
-            ]
-        ),
+        #     ]
+        # ),
         html.Div(
             [
                 daq.ToggleSwitch(id='dark-mode-switch',
                                  label={'label': 'View Page in Dark Mode:',
-                                        #  'style': {'font-size': '20px'}  # TODO: Getting error font-size should be fontSize?
+                                         'style': {'fontSize': '20px'} 
                                          },
                                  value=dark_mode,
                                  size=50,
                                  color='orange'),
-                "Enter integer number to start the Collatz-Conjecture: ",  # Hit enter/click outside box
-                dcc.Input(id='input-num-cc', type='number', min=1, step=1, debounce=True)
+                html.Hr(),
+                html.Div([
+                        "Enter integer number to start the Collatz-Conjecture: ",
+                        dcc.Input(id='input-num-cc', type='number', min=1, step=1, debounce=True),
+                        ], id='cc-div'),
+                html.Hr(),
+                html.Div([
+                        "Plotting speed 25-1000 (ms): ",
+                        dcc.Input(id='input-interval-ms', type='number', value=250, min=25, max=1000, step=1, debounce=True),
+                        ], id='plotting-speed-div')
             ], id='page-settings'
         ),
         html.Hr(),
         dcc.Graph(id="line-cc",
-                #   mathjax='cdn', # TODO: Remove
                   responsive='auto',
                   figure=plot_line([0], [0], 0, False, True)), #TODO: Remove as default?
-        dcc.Interval(id='interval', disabled=True, interval=1000, max_intervals=1000),  #TODO: Interval should not be started until input is received
+        dcc.Interval(id='interval', disabled=True, interval=250, max_intervals=10000),
         dcc.Store(id='current-num', data=0),  #TODO: May not need to start at 0?
         html.Hr(),
         get_table_container(df_cc_stats, dark_mode),
@@ -176,10 +184,6 @@ def main_layout(dark_mode):
                 html.Div(
                     ['This page was created using python apps: Plotly and Dash'],
                     id='footer-note'
-                ),
-                html.Div(
-                    ['Contact:'],
-                    id='footer-contact'
                 ),
                 html.Div(
                     ['Created by: Colin Huber 2023'],
@@ -211,6 +215,24 @@ app.clientside_callback(
 
 # ------------------------------------------------------------------------
 
+# Pass interval speed to interval object
+'''
+TBD
+'''
+app.clientside_callback(
+    """
+    function intervalSpeed(interval_speed) {
+    
+        return interval_speed;
+    }
+    """,
+    Output('interval', 'interval'),
+    Input('input-interval-ms', 'value'),
+    prevent_initial_call=True
+)
+
+# ------------------------------------------------------------------------
+
 '''
 TBD
 '''
@@ -218,19 +240,19 @@ app.clientside_callback(
     """
     function singleCollatzConjecture(input_n, n, n_intervals) {
     
-    if (n == null || n === 0) {
-      n = input_n;
-    }
+        if (n == null || n === 0) {
+        n = input_n;
+        }
 
-    if (n % 2 === 0) {
-      n /= 2;
-    } else {
-      n = 3 * n + 1;
-    }
+        if (n % 2 === 0) {
+        n /= 2;
+        } else {
+        n = 3 * n + 1;
+        }
 
-    disable_interval = n === 1 ? true : false;
+        disable_interval = n === 1 ? true : false;
 
-    return [[{x: [[n_intervals]], y: [[n]]}], disable_interval, n];
+        return [[{x: [[n_intervals]], y: [[n]]}], disable_interval, n];
 
 }
     """,
@@ -245,4 +267,4 @@ app.clientside_callback(
 # ------------------------------------------------------------------------
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(debug=True)  #TODO: Remove debug

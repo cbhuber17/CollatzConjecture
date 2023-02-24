@@ -1,3 +1,5 @@
+"""TBD module description"""
+
 from timeit import default_timer as timer
 import plotly.offline as pyo
 import plotly.graph_objs as go
@@ -37,8 +39,8 @@ def plot_line(x, y, processing_time, plot_offline=True, autorange=False):
     fig = go.Figure(data=traces, layout=layout)
 
     # Show processing time and steps
-    fig.add_annotation(xref='paper', yref='paper', x=0.9, y=0.9, showarrow=False, text=f'<b>Processing Time:</b> {processing_time*1e6:.3f} us')
-    fig.add_annotation(xref='paper', yref='paper', x=0.9, y=0.8, showarrow=False, text=f'<b>Number Steps:</b> {len(x)}')
+    # fig.add_annotation(xref='paper', yref='paper', x=0.9, y=0.9, showarrow=False, text=f'<b>Processing Time:</b> {processing_time*1e6:.3f} us')
+    # fig.add_annotation(xref='paper', yref='paper', x=0.9, y=0.8, showarrow=False, text=f'<b>Number Steps:</b> {len(x)}')
 
     # Animate plotting
     fig.update(frames=[go.Frame(data=[go.Scatter(x=x[:k], y=y[:k])]) for k in range(init, len(x)+1)])
