@@ -1,4 +1,4 @@
-"""TBD module description"""
+"""An interactive Collatz Conjecture module using Dash."""
 
 import pandas as pd
 import dash
@@ -9,22 +9,23 @@ from dash.exceptions import PreventUpdate
 from dash.dependencies import Input, Output, State
 import dash_bootstrap_components as dbc
 import dash_daq as daq
-from plot_cc import plot_line, do_cc
+from plot_cc import plot_line 
 import collatz_conjecture as cc
+
+COLOR_MODE_DASH = {'font_color': ('black', 'white'),
+                   'bg_color': ('#ffffd0', '#3a3f44')}
 
 app = dash.Dash(__name__, assets_folder='assets', title='Collatz Conjecture', update_title='Please wait...',
                 external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 app.config.suppress_callback_exceptions = True  # Dynamic layout
 
-# TODO: Clear plot on new number
-# TODO: A way of manually stopping plotting interval?  Or just entering a number does this?
-# TODO: Remove starting coordinate [0,0]
-# TODO: Double check x-axis range and y-axis range
-# TODO: Dark mode
+# TODO: Fill in a header HTML
+# TODO: Step 1-2 not getting plotted
 
 server = app.server
 
+# Hold CC stats for table display
 cc_stats = []
 df_cc_stats = pd.DataFrame({'Starting Number': [0], 'Processing time (us)': [0], '# Steps': [0]})
 
@@ -54,19 +55,40 @@ def display_page(pathname, dark_mode, screen_size):
 
 # ------------------------------------------------------------------------
 
+@app.callback(Output('dark-mode-value', 'data'), [Input('dark-mode-switch', 'value')])
+def dark_mode_setting(dark_mode):
+    """CALLBACK: Updates the global value of dark mode based on changes in the switch.
+    TRIGGER: Upon page loading and toggling the dark mode switch.
+    :param: dark_mode (bool) Whether the plot is done in dark mode or not
+    :return: (bool) Whether the plot is done in dark mode or not """
+    return dark_mode
+
+# ------------------------------------------------------------------------
+
+@app.callback(Output('main', 'style'), [Input('dark-mode-switch', 'value')])
+def update_layout(dark_mode):
+    """CALLBACK: Updates layout based on the dark mode toggle switch selected.
+    TRIGGER: Upon page loading and when selecting the toggle for dark mode
+    :param: dark_mode (bool) If dark mode plotting is done (True), light mode plotting (False)
+    :return: (dict) of styles to represent the main layout colors"""
+
+    return {'fontFamily': 'Arial', 'fontSize': 18, 'color': COLOR_MODE_DASH['font_color'][dark_mode],
+            'border': '4px solid skyblue', 'background-color': COLOR_MODE_DASH['bg_color'][dark_mode]}
+
+# ------------------------------------------------------------------------
+
 @app.callback(
-        # [
-        # Output('line-cc', 'figure'),
-        Output('table', 'data'),
-        # ],
+        [Output('line-cc', 'figure'), Output('table', 'data')],
         [Input('dark-mode-switch', 'value'), Input('input-num-cc', 'value')],
         State('table', 'data'), State('table', 'columns'))
 def update_table(dark_mode, n, rows, columns):
-    """CALLBACK: Updates the line charts based on the dark mode selected.
-    TRIGGER: Upon page load, toggling the dark mode switch, or changing x-axis timeline by button or zoom.
+    """CALLBACK: Updates the line chart based on the dark mode and input number provided.
+    TRIGGER: Upon page load, toggling the dark mode switch, or changing starting input number.
     :param: dark_mode (bool) Whether the plot is done in dark mode or not
     :param: n (int) Starting seed for collatz-conjecture
-    :return: (go.Figure), (go.Figure) objects that will be dynamically updated"""
+    :rows: n (int) A link to the table data
+    :columns: n (int) A link to the table columns
+    :return: (go.Figure), df.to_dict('records')"""
 
     global cc_stats
 
@@ -75,16 +97,23 @@ def update_table(dark_mode, n, rows, columns):
 
     n = cc.check_number(n)
 
-    # TODO; Don't think can use this for clinentside callback, however can still extract processing time
-    step_num, conjecture, processing_time = do_cc(n)
+    # Extract python processing time
+    # JS processing time (in the clientside_callback below) is not computed
+    step_num, conjecture, processing_time = cc.do_cc(n)
 
+    # CC stats for table population
     cc_stats.append([n, "{:.2f}".format(processing_time*1e6), len(step_num)])
     df_cc_stats = pd.DataFrame(cc_stats, columns=['Starting Number', 'Processing time (us)', '# Steps'])
 
-    # fig = plot_line(step_num, conjecture, processing_time, False, False)
+    # Just get a basic figure object then wipe out the data when a new input number comes in
+    fig = plot_line(step_num, conjecture, processing_time, False, True, dark_mode)
 
-    # return fig, df_cc_stats.to_dict('records')
-    return df_cc_stats.to_dict('records')
+    # Clear the data when a new number comes in
+    # Start with step 1 at input n
+    fig.data[0]['x'] = [1] 
+    fig.data[0]['y'] = [n] 
+
+    return fig, df_cc_stats.to_dict('records')
 
 # ------------------------------------------------------------------------
 
@@ -99,15 +128,15 @@ def get_table_container(df_cc_stats, dark_mode):
             dash_table.DataTable(data=df_cc_stats.to_dict('records'), id='table',
                                  style_header={
                                      'fontWeight': 'bold',
-                                    #  'color': COLOR_MODE_DASH['font_color'][dark_mode]
+                                     'color': COLOR_MODE_DASH['font_color'][dark_mode]
                                     },
                                  style_cell={'textAlign': 'center',
                                              'height': 'auto',
                                              'padding-right': '10px',
                                              'padding-left': '10px',
                                              'whiteSpace': 'normal',
-                                            #  'backgroundColor': COLOR_MODE_DASH['bg_color'][dark_mode],
-                                            #  'color': COLOR_MODE_DASH['font_color'][dark_mode],
+                                             'backgroundColor': COLOR_MODE_DASH['bg_color'][dark_mode],
+                                             'color': COLOR_MODE_DASH['font_color'][dark_mode],
                                              },
                                 #  fill_width=False,
                                 #  style_table={'overflowX': 'auto'},
@@ -173,9 +202,10 @@ def main_layout(dark_mode):
         html.Hr(),
         dcc.Graph(id="line-cc",
                   responsive='auto',
-                  figure=plot_line([0], [0], 0, False, True)), #TODO: Remove as default?
+                  figure=plot_line([0], [0], 0, False, True, dark_mode)),
         dcc.Interval(id='interval', disabled=True, interval=250, max_intervals=10000),
-        dcc.Store(id='current-num', data=0),  #TODO: May not need to start at 0?
+        dcc.Store(id='current-num', data=0),
+        dcc.Store(id='step-num', data=1),
         html.Hr(),
         get_table_container(df_cc_stats, dark_mode),
         html.Hr(),
@@ -215,9 +245,9 @@ app.clientside_callback(
 
 # ------------------------------------------------------------------------
 
-# Pass interval speed to interval object
 '''
-TBD
+A clientside callback to pass the interval speed to the interval object.
+TRIGGER: Upon filling the input-interval-ms box.
 '''
 app.clientside_callback(
     """
@@ -234,37 +264,59 @@ app.clientside_callback(
 # ------------------------------------------------------------------------
 
 '''
-TBD
+A faster clientside callback to do the CC for one step at a time.
+The interval object calls this at the speed provided from the callback from
+the previous function.
+TRIGGER: When an input is provided.  Then it:
+- Appends the data to the plot
+- Disables the interval if we've hit the end
+- Keeps track fo the current number and step number in their dcc.Store objects.
 '''
 app.clientside_callback(
     """
-    function singleCollatzConjecture(input_n, n, n_intervals) {
+    function singleCollatzConjecture(input_n, n, step_num, n_intervals) {
     
+        // Very first number comes in
         if (n == null || n === 0) {
-        n = input_n;
+            n = input_n;
         }
+
+        // A new number comes in
+        if(n === 1) {
+            n = input_n;
+            step_num = 1;
+        }
+
+        step_num += 1;
 
         if (n % 2 === 0) {
-        n /= 2;
-        } else {
-        n = 3 * n + 1;
+            n /= 2;
+            } else {
+            n = 3 * n + 1;
         }
 
+        // Stop the interval when 1 his hit
         disable_interval = n === 1 ? true : false;
 
-        return [[{x: [[n_intervals]], y: [[n]]}], disable_interval, n];
+        // TODO: Figure out why step # 2 is not plotted
+        //console.log(step_num);
+        //console.log(n);
+
+        return [[{x: [[step_num]], y: [[n]]}], disable_interval, n, step_num];
 
 }
     """,
     Output('line-cc', 'extendData'),
     Output('interval', 'disabled'),
     Output('current-num', 'data'),
+    Output('step-num', 'data'),
     Input('input-num-cc', 'value'),
     Input('current-num', 'data'),
-    Input('interval', 'n_intervals'),
+    Input('step-num', 'data'),
+    Input('interval', 'n_intervals'),  # This is needed to keep the interval going
     prevent_initial_call=True
 )
 # ------------------------------------------------------------------------
 
 if __name__ == '__main__':
-    app.run_server(debug=True)  #TODO: Remove debug
+    app.run_server()
