@@ -227,7 +227,6 @@ def main_layout(dark_mode):
 
 # ------------------------------------------------------------------------
 
-# TODO:: Remove?
 """CALLBACK: A client callback to execute JS in a browser session to get the screen width and height.
 TRIGGER: Upon page loading.
 Results are put in the Store() viewport-container data property."""

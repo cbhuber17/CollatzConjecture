@@ -32,17 +32,6 @@ def check_number(n) -> int:
 
     Raises:
         SystemExit: If the input parameter cannot be cast to an integer.
-
-    Examples:
-        >>> check_number(5.5)
-        ERROR: 5.5 is not an integer.
-        SystemExit: -1
-
-        >>> check_number("10")
-        10
-
-        >>> check_number(True)
-        1
     """
 
     try:
