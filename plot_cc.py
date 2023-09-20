@@ -5,9 +5,9 @@ import plotly.graph_objs as go
 import plotly.io as pio
 from plotly.subplots import make_subplots
 import collatz_conjecture as cc
-from PlotlyHexagonTheme import plotly_hexagon_theme
+# from PlotlyHexagonTheme import plotly_hexagon_theme
 
-pio.templates.default = 'plotly+hex_novatel'
+# pio.templates.default = 'plotly+hex_novatel'
 
 # Dark/light mode colors
 COLOR_MODE = {'title': ('black', 'white'),
